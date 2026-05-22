@@ -6,10 +6,6 @@
 through the fused Triton/Metal kernels from ``late-interaction-kernels`` when
 the dependency is installed and the runtime is supported, and falls through to
 the pure-torch ``einsum + amax + sum`` otherwise.
-
-The dispatch rules mirror what ``late_interaction_kernels.colpali_compat`` used
-to do via monkey-patching. Now that colpali-engine owns the dispatch, the LIK
-patch module can be retired.
 """
 
 import importlib.util
