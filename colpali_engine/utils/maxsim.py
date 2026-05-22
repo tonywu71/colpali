@@ -14,7 +14,6 @@ patch module can be retired.
 
 import importlib.util
 import os
-from typing import Optional
 
 import torch
 
@@ -22,7 +21,7 @@ import torch
 _LIK_AVAILABLE: bool = importlib.util.find_spec("late_interaction_kernels") is not None
 
 
-def _dispatch_path(query: torch.Tensor, doc: torch.Tensor) -> Optional[str]:
+def _dispatch_path(query: torch.Tensor, doc: torch.Tensor) -> str | None:
     """Pick the dispatch backend or return None to fall back to torch.
 
     Returns ``"cuda"`` for CUDA Ampere+ devices, ``"mps"`` for Apple Silicon,
