@@ -8,13 +8,16 @@ the dependency is installed and the runtime is supported, and falls through to
 the pure-torch ``einsum + amax + sum`` otherwise.
 """
 
-import importlib.util
 import os
 
 import torch
 
-# Resolved once at import time: avoids a `find_spec` call on every loss step.
-_LIK_AVAILABLE: bool = importlib.util.find_spec("late_interaction_kernels") is not None
+try:
+    import late_interaction_kernels as _lik  # noqa: F401
+
+    _LIK_AVAILABLE: bool = True
+except ImportError:
+    _LIK_AVAILABLE = False
 
 
 def _dispatch_path(query: torch.Tensor, doc: torch.Tensor) -> str | None:
