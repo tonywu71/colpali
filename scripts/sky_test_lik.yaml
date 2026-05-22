@@ -17,7 +17,7 @@ workdir: .
 setup: |
   set -eux
   cd ~/sky_workdir
-  apt-get update && apt-get install -y --no-install-recommends curl ca-certificates
+  apt-get update && apt-get install -y --no-install-recommends curl ca-certificates git
   curl -LsSf https://astral.sh/uv/install.sh | sh
   export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
   uv venv --python 3.11 .venv
