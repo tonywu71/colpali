@@ -21,8 +21,18 @@ def _dispatch_path(query: torch.Tensor, doc: torch.Tensor) -> str | None:
     """Pick the dispatch backend or return None to fall back to torch.
 
     Returns ``"cuda"`` for CUDA Ampere+ devices, ``"mps"`` for Apple Silicon,
-    or ``None`` for every other case (no LIK installed, ``LIK_DISABLE=1``,
-    mixed devices, ``d < 8``, sub-Ampere CUDA, CPU, ...).
+    or ``None`` for every other case. The bail-out conditions:
+
+    * LIK not installed — there is no kernel to call.
+    * ``LIK_DISABLE=1`` — manual override for A/B testing or numeric debugging
+      without uninstalling LIK.
+    * Mixed devices — the kernel runs on a single device; cross-device tensors
+      would error or trigger an implicit copy.
+    * ``d < 8`` — Triton tile / MMA shapes have a hard lower bound on the
+      embedding dim; below it the kernel won't outperform einsum.
+    * CUDA capability ``< 8`` (pre-Ampere) — lacks the bf16 tensor-core path
+      the kernel autotunes for.
+    * CPU or any other backend — no LIK kernel exists for it.
     """
     if not _LIK_AVAILABLE:
         return None
