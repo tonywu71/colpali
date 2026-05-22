@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ### Added
 
 - Add ColQwen3.5 and BiQwen3.5 support (model + processor). Pretrained checkpoint: [athrael-soju/colqwen3.5-4.5B-v3](https://huggingface.co/athrael-soju/colqwen3.5-4.5B-v3).
+- Add optional `[kernels]` extra (`late-interaction-kernels>=0.2.0,<0.3.0`) that routes `score_multi_vector` and the three in-batch ColBERT losses (`ColbertLoss`, `ColbertPairwiseCELoss`, `ColbertSigmoidLoss`) through the fused Triton MaxSim kernel on CUDA Ampere+ / Apple Silicon, with a transparent torch fallback elsewhere. Set `LIK_DISABLE=1` to force the fallback.
 
 ### Changed
 
