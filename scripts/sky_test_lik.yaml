@@ -1,16 +1,19 @@
-# Run the CUDA-gated MaxSim/LIK slow tests on a single Ampere+ GPU.
+# Run the CUDA-gated MaxSim/LIK slow tests on a single GPU.
 #
-#   sky launch -c colpali-lik-test scripts/sky_test_lik.yaml -y
-#   sky logs colpali-lik-test
-#   sky down colpali-lik-test -y
+# Launch with:
+#
+#   sky launch -c colpali-lik-test scripts/sky_test_lik.yaml
 
 name: colpali-lik-test
 
 resources:
   infra: kubernetes
   image_id: docker:nvidia/cuda:12.4.1-runtime-ubuntu22.04
-  accelerators: L4:1
+  accelerators: H100:1
   cpus: 8+
+  autostop:
+    idle_minutes: 1
+    down: true
 
 workdir: .
 
