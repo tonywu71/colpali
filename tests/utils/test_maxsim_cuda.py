@@ -35,9 +35,18 @@ DOC_LEN = 32
 
 _DTYPES: list[torch.dtype] = [torch.float32, torch.float16, torch.bfloat16]
 
-
-def _atol(dtype: torch.dtype) -> float:
-    return 1e-4 if dtype == torch.float32 else 2e-2
+# Tolerances calibrated to match the LIK project's own tests
+# (see late-interaction-kernels/tests/test_padded.py).
+_FORWARD_TOL: dict[torch.dtype, float] = {
+    torch.float32: 5e-3,
+    torch.float16: 2e-2,
+    torch.bfloat16: 2e-2,
+}
+_BACKWARD_TOL: dict[torch.dtype, float] = {
+    torch.float32: 1e-2,
+    torch.float16: 1e-2,
+    torch.bfloat16: 2e-2,
+}
 
 
 def _random_inputs(dtype: torch.dtype, requires_grad: bool = False) -> tuple[torch.Tensor, torch.Tensor]:
@@ -63,11 +72,14 @@ def test_forward_parity_cuda(dtype: torch.dtype, monkeypatch: pytest.MonkeyPatch
 
     monkeypatch.setenv("LIK_DISABLE", "1")
     want = maxsim_inbatch(query, doc)
-    # Sanity: the disabled path should match the reference einsum exactly.
-    assert torch.allclose(want, _torch_maxsim(query, doc))
+    # Sanity: the disabled path equals the reference einsum exactly.
+    assert torch.equal(want, _torch_maxsim(query, doc))
 
     assert got.shape == want.shape
-    assert torch.allclose(got, want, atol=_atol(dtype))
+    tol = _FORWARD_TOL[dtype]
+    # LIK always returns fp32; cast the torch reference to fp32 too so the
+    # comparison isn't bottlenecked by bf16/fp16 accumulation noise.
+    torch.testing.assert_close(got.float(), want.float(), rtol=tol, atol=tol)
 
 
 @pytest.mark.parametrize("dtype", _DTYPES)
@@ -80,13 +92,12 @@ def test_backward_parity_cuda(dtype: torch.dtype, monkeypatch: pytest.MonkeyPatc
     maxsim_inbatch(query_ref, doc_ref).sum().backward()
 
     # The fused-kernel backward uses fp32 atomic adds; the torch path reduces
-    # in the input dtype. We compare in fp32 with a tolerance matching the
-    # forward parity check.
-    tol = _atol(dtype)
+    # in the input dtype. Comparing in fp32 with the LIK-project tolerances.
+    tol = _BACKWARD_TOL[dtype]
     assert query_lik.grad is not None and query_ref.grad is not None
     assert doc_lik.grad is not None and doc_ref.grad is not None
-    assert torch.allclose(query_lik.grad.float(), query_ref.grad.float(), atol=tol)
-    assert torch.allclose(doc_lik.grad.float(), doc_ref.grad.float(), atol=tol)
+    torch.testing.assert_close(query_lik.grad.float(), query_ref.grad.float(), rtol=tol, atol=tol)
+    torch.testing.assert_close(doc_lik.grad.float(), doc_ref.grad.float(), rtol=tol, atol=tol)
 
 
 @pytest.mark.parametrize(
