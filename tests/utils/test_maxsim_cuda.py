@@ -84,20 +84,24 @@ def test_forward_parity_cuda(dtype: torch.dtype, monkeypatch: pytest.MonkeyPatch
 
 @pytest.mark.parametrize("dtype", _DTYPES)
 def test_backward_parity_cuda(dtype: torch.dtype, monkeypatch: pytest.MonkeyPatch) -> None:
+    # LIK side: input dtype as-is, the kernel accumulates in fp32 internally.
     query_lik, doc_lik = _random_inputs(dtype, requires_grad=True)
     maxsim_inbatch(query_lik, doc_lik).sum().backward()
 
+    # Reference side: cast the same input values to fp32 so the torch reduce
+    # runs in fp32 too. Comparing against a bf16/fp16 torch reduce instead
+    # would surface bf16/fp16 accumulation noise — not a kernel discrepancy.
     monkeypatch.setenv("LIK_DISABLE", "1")
-    query_ref, doc_ref = _random_inputs(dtype, requires_grad=True)
+    query_ref_dtype, doc_ref_dtype = _random_inputs(dtype)
+    query_ref = query_ref_dtype.float().requires_grad_(True)
+    doc_ref = doc_ref_dtype.float().requires_grad_(True)
     maxsim_inbatch(query_ref, doc_ref).sum().backward()
 
-    # The fused-kernel backward uses fp32 atomic adds; the torch path reduces
-    # in the input dtype. Comparing in fp32 with the LIK-project tolerances.
     tol = _BACKWARD_TOL[dtype]
     assert query_lik.grad is not None and query_ref.grad is not None
     assert doc_lik.grad is not None and doc_ref.grad is not None
-    torch.testing.assert_close(query_lik.grad.float(), query_ref.grad.float(), rtol=tol, atol=tol)
-    torch.testing.assert_close(doc_lik.grad.float(), doc_ref.grad.float(), rtol=tol, atol=tol)
+    torch.testing.assert_close(query_lik.grad.float(), query_ref.grad, rtol=tol, atol=tol)
+    torch.testing.assert_close(doc_lik.grad.float(), doc_ref.grad, rtol=tol, atol=tol)
 
 
 @pytest.mark.parametrize(
