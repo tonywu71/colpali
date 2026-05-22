@@ -60,7 +60,7 @@ interpretability = [
     "seaborn>=0.13.2,<1.0.0",
 ]
 
-kernels = ["late-interaction-kernels>=0.2.0,<1.0.0"]
+kernels = ["late-interaction-kernels>=0.2.0,<0.3.0"]
 
 dev = ["pytest>=8.0.0", "ruff>=0.4.0"]
 
