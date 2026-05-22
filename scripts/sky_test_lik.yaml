@@ -1,0 +1,34 @@
+# Run the CUDA-gated MaxSim/LIK slow tests on a single Ampere+ GPU.
+#
+#   sky launch -c colpali-lik-test scripts/sky_test_lik.yaml -y
+#   sky logs colpali-lik-test
+#   sky down colpali-lik-test -y
+
+name: colpali-lik-test
+
+resources:
+  infra: kubernetes
+  image_id: docker:nvcr.io/nvidia/pytorch:25.06-py3
+  # Any Ampere+ GPU works (capability >= 8.0). A10 is the cheapest;
+  # swap to A100:1 / H100:1 / L4:1 if that's what's available.
+  accelerators: A10:1
+  cpus: 8+
+
+workdir: .
+
+setup: |
+  set -eux
+  cd ~/sky_workdir
+  # NGC image already ships torch + triton; install the package plus the
+  # kernels + dev extras (pytest, late-interaction-kernels).
+  # PEP 668 (system-managed Debian) requires --break-system-packages on NGC.
+  pip install -e ".[kernels,dev]" --break-system-packages
+
+run: |
+  set -euxo pipefail
+  cd ~/sky_workdir
+
+  python -c "import torch; print('GPU:', torch.cuda.get_device_name()); print('torch:', torch.__version__); print('capability:', torch.cuda.get_device_capability())"
+  python -c "import late_interaction_kernels as lik; print('LIK:', lik.__version__ if hasattr(lik, '__version__') else 'installed')"
+
+  pytest -m slow tests/utils/test_maxsim_cuda.py -v
